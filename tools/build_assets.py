@@ -410,7 +410,10 @@ def slide_link(deck, n, cnvpr):
 
 def bake_picture(deck, n, idx, media_path, xf, shadow):
     """Retalla/escala la imatge a la mida final i hi aplica l'ombra de la presentació."""
-    img = Image.open(deck.z.open(media_path)).convert('RGBA')
+    # Fotos actualitzades: fotos_actualizadas/<mateix nom que dins del PowerPoint> té prioritat
+    over = os.path.join(ROOT, 'fotos_actualizadas', posixpath.basename(media_path))
+    src = over if os.path.exists(over) else deck.z.open(media_path)
+    img = Image.open(src).convert('RGBA')
     w, h = max(1, round(xf['w'] / EMU)), max(1, round(xf['h'] / EMU))
     img = img.resize((w, h), Image.LANCZOS)
     if xf['flipH']:
