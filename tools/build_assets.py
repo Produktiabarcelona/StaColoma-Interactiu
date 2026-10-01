@@ -572,6 +572,15 @@ def relayout_slide5(items):
     return out
 
 
+def even_spacing(items, pct=1.5):
+    """Diapositiva 6: al PowerPoint els paràgrafs tenen interlineats diferents (160 %, 160 %, 90 %),
+    i les línies queden a distàncies desiguals. Tots amb el mateix."""
+    for e in items:
+        if e['t'] == 'text' and e['kind'] == 'text' and len(e.get('paras', [])) > 1:
+            for p in e['paras']:
+                p['ln'] = {'pct': pct}
+
+
 def build_slides(deck):
     slides = {}
     for n in range(2, 12):
@@ -585,6 +594,8 @@ def build_slides(deck):
             e['kind'] = classify(n, e)
         if n == 5:
             items = relayout_slide5(items)
+        if n == 6:
+            even_spacing(items)
         slides[str(n)] = items
         print(f'diapo {n}:', ', '.join(e['kind'] for e in items))
     return slides
