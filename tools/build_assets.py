@@ -572,6 +572,17 @@ def relayout_slide5(items):
     return out
 
 
+def relayout_slide10(items):
+    """Diapositiva 10: a la columna dreta els títols ("Espai Juvenil…", "Millores al Centre Cívic")
+    es munten sobre les fotos. Es baixen les fotos i el segon títol perquè quedin ben separats."""
+    for e in items:
+        if e['t'] == 'pic' and e['x'] > 1250:
+            e['y'] = round(e['y'] + (34 if e['y'] < 800 else 30), 2)
+        elif e['t'] == 'text' and e['kind'] == 'text' and len(e.get('paras', [])) == 3:
+            e['anchor'], e['y'] = 't', 437          # el primer títol es queda on era
+            e['paras'][2]['bef'] += 98
+
+
 def even_spacing(items, pct=1.5):
     """Diapositiva 6: al PowerPoint els paràgrafs tenen interlineats diferents (160 %, 160 %, 90 %),
     i les línies queden a distàncies desiguals. Tots amb el mateix."""
@@ -596,6 +607,8 @@ def build_slides(deck):
             items = relayout_slide5(items)
         if n == 6:
             even_spacing(items)
+        if n == 10:
+            relayout_slide10(items)
         slides[str(n)] = items
         print(f'diapo {n}:', ', '.join(e['kind'] for e in items))
     return slides
