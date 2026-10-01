@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Anem a Fondo</title>
+<!-- Tipografia de la presentació. Si hi ha còpia local a assets/fonts, té prioritat (funciona sense internet) -->
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;800&display=block">
+<style>
+  :root {
+    --cream: #f9f3e4; --navy: #1f3461;
+    --yel: #f9bd16; --pink: #e8496a; --cyan: #1fb0dd; --mag: #e83e8a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: var(--cream);
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
+    overscroll-behavior: none;
+  }
+  body { display: flex; align-items: center; justify-content: center; }
+
+  /* Escenari 16:9. --u = 1 píxel de la diapositiva original (2560 px d'amplada) */
+  #stage {
+    position: relative; overflow: hidden;
+    width: min(100vw, 177.7778vh);
+    height: min(56.25vw, 100vh);
+    background: var(--cream);
+    --u: calc(min(100vw, 177.7778vh) / 2560);
+  }
+  #stage > * { position: absolute; inset: 0; }
+  canvas { width: 100%; height: 100%; display: block; }
+  #fx, #fxdom, #ui { pointer-events: none; }
+  #slides { z-index: 0; }   /* capa pròpia: res del contingut no pot quedar per sobre de l'onada */
+  #ui > * { pointer-events: auto; }
+
+  .layer { position: absolute; inset: 0; visibility: hidden; }
+  .layer.active { visibility: visible; }
+
+  .spr { position: absolute; display: block; opacity: 0; transform-origin: 50% 50%; }
+  .spr img, img.spr { -webkit-user-drag: none; pointer-events: none; }
+  .spr > img { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .spr.static { opacity: 1; }
+  .spr.in { opacity: 1; animation: var(--anim) var(--dur, .8s) var(--ease, cubic-bezier(.2,.9,.25,1.15)) var(--d, 0ms) both; }
+
+  /* --- Textos reals -------------------------------------------------------- */
+  @font-face { font-family: 'PoppinsL'; font-weight: 500; font-display: block; src: url(assets/fonts/Poppins-Medium.woff2) format('woff2'); }
+  @font-face { font-family: 'PoppinsL'; font-weight: 800; font-display: block; src: url(assets/fonts/Poppins-ExtraBold.woff2) format('woff2'); }
+  .tb { display: flex; flex-direction: column; overflow: visible; }
+  .tb .p { position: relative; }
+  .tb .w, .tb .bu { display: inline-block; }
+  .tb .w, .tb .bu { text-indent: 0; }
+  .shape { position: absolute; }
+  .k-text, .k-title { z-index: 2; }
+  .k-title, .k-text { --anim: none; }
+  .k-title.in .w, .k-title.in .bu { animation: wordDrop .75s cubic-bezier(.2,.9,.25,1.25) calc(var(--d) + var(--wd, 0ms)) both; }
+  .k-text.in .w, .k-text.in .bu   { animation: wordUp .6s cubic-bezier(.2,.8,.2,1) calc(var(--d) + var(--wd, 0ms)) both; }
+  @keyframes wordDrop {
+    0%   { opacity: 0; transform: translateY(-.8em) rotate(-9deg) scale(.7); }
+    60%  { opacity: 1; transform: translateY(.06em) rotate(2deg) scale(1.04); }
+    100% { opacity: 1; transform: none; }
+  }
+  @keyframes wordUp {
+    0%   { opacity: 0; transform: translateY(.7em); }
+    100% { opacity: 1; transform: none; }
+  }
+  .nomotion .spr.in, .nomotion .spr.in * { animation: none !important; }
+  .ovl { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .45; pointer-events: none; z-index: 5; }
+
+  /* --- Entrades ----------------------------------------------------------- */
+  .k-title  { --anim: dropIn;  --dur: .85s; }
+  .k-text   { --anim: slideIn; --dur: .7s;  --ease: cubic-bezier(.2,.8,.2,1); }
+  .k-photo  { --anim: popIn;   --dur: .9s; }
+  .k-icon   { --anim: spinPop; --dur: .8s; }
+  .k-badge  { --anim: spinPop; --dur: .7s; }
+  .k-tile   { --anim: tileIn;  --dur: .85s; }
+  .k-logo   { --anim: zoomIn;  --dur: 1s; }
+  .k-skyline{ --anim: riseUp;  --dur: 1.3s; --ease: cubic-bezier(.16,.9,.3,1.04); }
+  .k-sun    { --anim: sunIn;   --dur: 1.4s; }
+  .k-anema  { --anim: dropIn;  --dur: .9s; }
+  .k-fondo  { --anim: fondoIn; --dur: .9s; }
+  .k-heart  { --anim: heartIn; --dur: .9s; }
+  .k-arrow  { --anim: drawIn;  --dur: .9s; --ease: cubic-bezier(.6,0,.2,1); }
+  .k-brand  { --anim: fadeUp;  --dur: .8s; --ease: ease-out; }
+  .k-small  { --anim: dropIn;  --dur: .8s; }
+
+  @keyframes dropIn {
+    0%   { opacity: 0; transform: translateY(calc(var(--u) * -120)) scale(.9); }
+    55%  { opacity: 1; transform: translateY(calc(var(--u) * 10)) scale(1.02); }
+    78%  { transform: translateY(calc(var(--u) * -4)); }
+    100% { opacity: 1; transform: none; }
+  }
+  @keyframes slideIn {
+    0%   { opacity: 0; transform: translateX(calc(var(--u) * -90)); }
+    100% { opacity: 1; transform: none; }
+  }
+  @keyframes popIn {
+    0%   { opacity: 0; transform: scale(.35) rotate(-7deg); }
+    50%  { opacity: 1; transform: scale(1.06) rotate(1.8deg); }
+    75%  { transform: scale(.98) rotate(-.6deg); }
+    100% { opacity: 1; transform: none; }
+  }
+  @keyframes spinPop {
+    0%   { opacity: 0; transform: scale(0) rotate(-140deg); }
+    65%  { opacity: 1; transform: scale(1.18) rotate(12deg); }
+    100% { opacity: 1; transform: none; }
+  }
+  @keyframes tileIn {
+    0%   { opacity: 0; transform: scale(0) rotate(var(--rot, -10deg)); }
+    55%  { opacity: 1; transform: scale(1.12) rotate(calc(var(--rot, -10deg) * -.3)); }
+    78%  { transform: scale(.95) rotate(0); }
+    100% { opacity: 1; transform: none; }
+  }
+  @keyframes zoomIn {
+    0%   { opacity: 0; transform: scale(.2); }
+    60%  { opacity: 1; transform: scale(1.08); }
+    100% { opacity: 1; transform: none; }
+  }
+  @keyframes riseUp {
+    0%   { opacity: 1; transform: translateY(calc(var(--u) * 520)); }
+    100% { opacity: 1; transform: none; }
+  }
+  @keyframes sunIn {
+    0%   { opacity: 0; transform: translateY(calc(var(--u) * 260)) scale(.3); }
+    60%  { opacity: 1; transform: translateY(calc(var(--u) * -14)) scale(1.06); }
+    100% { opacity: 1; transform: none; }
+  }
+  @keyframes fondoIn {
+    0%   { opacity: 0; transform: scale(.4) translateY(calc(var(--u) * 60)); }
+    55%  { opacity: 1; transform: scale(1.07); }
+    80%  { transform: scale(.98); }
+    100% { opacity: 1; transform: none; }
+  }
+  @keyframes heartIn {
+    0%   { opacity: 0; transform: scale(0) rotate(-25deg); }
+    50%  { opacity: 1; transform: scale(1.45) rotate(8deg); }
+    75%  { transform: scale(.9); }
+    100% { opacity: 1; transform: none; }
+  }
+  @keyframes drawIn {
+    0%   { opacity: 1; clip-path: inset(0 100% 0 0); }
+    100% { opacity: 1; clip-path: inset(0 0 0 0); }
+  }
+  @keyframes fadeUp {
+    0%   { opacity: 0; transform: translateY(calc(var(--u) * 50)); }
+    100% { opacity: 1; transform: none; }
+  }
+
+  /* --- Animacions contínues (propietats independents de l'entrada) -------- */
+  .k-heart.in { animation: heartIn .9s cubic-bezier(.2,.9,.25,1.15) var(--d) both, beat 1.8s ease-in-out calc(var(--d) + 1s) infinite; }
+  @keyframes beat { 0%, 40%, 100% { scale: 1; } 12% { scale: 1.16; } 26% { scale: 1.07; } }
+  .k-sun.in { animation: sunIn 1.4s cubic-bezier(.2,.9,.25,1.15) var(--d) both, glow 5s ease-in-out calc(var(--d) + 1.4s) infinite; }
+  @keyframes glow { 0%, 100% { scale: 1; translate: 0 0; } 50% { scale: 1.05; translate: 0 calc(var(--u) * -10); } }
+  .k-tile.in { animation: tileIn .85s cubic-bezier(.2,.9,.25,1.15) var(--d) both, bob 4.5s ease-in-out calc(var(--d) + .9s) infinite; }
+  .k-logo.in { animation: zoomIn 1s cubic-bezier(.2,.9,.25,1.15) var(--d) both, bob 6s ease-in-out calc(var(--d) + 1s) infinite; }
+  .k-anema.in, .k-fondo.in { animation: var(--anim) .9s cubic-bezier(.2,.9,.25,1.15) var(--d) both, bob 5s ease-in-out calc(var(--d) + 1s) infinite; }
+  @keyframes bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 calc(var(--u) * -9); } }
+
+  /* Caselles del menú: resposta al tocar */
+  .k-tile { cursor: pointer; pointer-events: auto; transition: scale .14s ease, filter .14s ease; }
+  .k-tile.press { scale: .92; filter: brightness(1.08); }
+  .k-tile.burst { scale: 1.12; transition: scale .25s cubic-bezier(.2,.9,.25,1.4); }
+
+  /* Botons de navegació */
+  .nav {
+    position: absolute; border: 0; background: none; cursor: pointer; outline: none;
+    transition: scale .14s ease, opacity .3s ease;
+  }
+  .nav img { position: absolute; display: block; pointer-events: none; filter: drop-shadow(0 calc(var(--u)*4) calc(var(--u)*6) rgba(31,52,97,.3)); }
+  .nav.next img { transform: scaleX(-1); }
+  .nav.press { scale: .86; }
+  .nav.enter { animation: btnIn .55s cubic-bezier(.2,.9,.25,1.4) var(--d, 0ms) both; }
+  .nav.leave { animation: btnOut .3s ease-in both; pointer-events: none; }
+  .nav.pulse img { animation: pulse 2.2s ease-in-out infinite; }
+  @keyframes btnIn  { 0% { opacity: 0; transform: scale(0) rotate(-90deg); } 100% { opacity: 1; transform: none; } }
+  @keyframes btnOut { to { opacity: 0; transform: scale(0); } }
+  @keyframes pulse  { 0%, 100% { scale: 1; } 50% { scale: 1.12; } }
+
+  #tapall { position: absolute; inset: 0; border: 0; background: none; display: none; cursor: pointer; }
+  #tapall.on { display: block; }
+
+  /* Onada de toc */
+  .ripple {
+    position: absolute; border-radius: 50%; pointer-events: none;
+    width: calc(var(--u) * 260); height: calc(var(--u) * 260);
+    margin: calc(var(--u) * -130) 0 0 calc(var(--u) * -130);
+    border: calc(var(--u) * 10) solid var(--c);
+    animation: ripple .65s cubic-bezier(.2,.8,.3,1) forwards;
+  }
+  @keyframes ripple { 0% { transform: scale(.1); opacity: .9; } 100% { transform: scale(1); opacity: 0; } }
+
+  #loading { display: flex; align-items: center; justify-content: center; background: var(--cream); transition: opacity .4s; z-index: 9; }
+  #loading.done { opacity: 0; pointer-events: none; }
+  #loading i { width: 6vmin; height: 6vmin; border-radius: 50%; border: .8vmin solid var(--cyan); border-top-color: var(--pink); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(1turn); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spr.in, .k-tile.in, .k-heart.in, .k-sun.in, .k-logo.in { animation: none !important; opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="back"></div>          <!-- elements de la portada que queden darrere de les ones -->
+  <canvas id="bg"></canvas>      <!-- ones en repòs -->
+  <div id="slides"></div>        <!-- continguts de cada diapositiva -->
+  <canvas id="fx"></canvas>      <!-- onada de transició -->
+  <div id="ui"><button id="tapall" aria-label="Començar"></button></div>
+  <div id="fxdom"></div>         <!-- onades de toc -->
+  <div id="loading"><i></i></div>
+</div>
+
+<script src="assets/manifest.js"></script>
+<script>
+/*
+  MAPA DE NAVEGACIÓ
+  1-2  : presentació en bucle (alternen soles). Tocar qualsevol lloc -> Menú (3)
+  3    : Menú principal: 7 caselles. ◀ torna a la portada (cloure).
+  4    : Un barri estructurat
+  5-6  : Desenvolupament àmbit Sant Pasqual (1) -> (2)
+  7-11 : resta de seccions. 🏠 -> menú. ◀ ▶ anterior / següent. Després de la 11 -> portada.
+
+  Teclat: ← → navegar · H / Inici = menú · Esc / 0 = portada · F = pantalla completa
+*/
+const M = window.FONDO;
+const W = M.W, H = M.H;
+const LOOP_MS = 9000;          // temps de cada diapo de presentació en bucle
+const AUTO_FULLSCREEN = true;  // pantalla completa al primer toc
+const QS = new URLSearchParams(location.search);
+const SLOW = +(QS.get('slow') || 1);   // depuració: ?slow=4 (càmera lenta)
+const OVERLAY = QS.has('overlay');      // depuració: ?overlay (diapositiva original a sobre)
+const T_NAV = 850 * SLOW;      // durada base de la transició (ms)
+const T_LOOP = 1300 * SLOW;    // transició més lenta per al bucle de presentació
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const COL = { yel: '#f9bd16', pink: '#e8496a', cyan: '#1fb0dd', mag: '#e83e8a', navy: '#1f3461' };
+
+// Botons (posicions de la presentació original, en píxels de 2560x1440)
+const BTN = { size: 83.6, y: 1319.6,
+  x: { 1: { next: 2423.3 }, 2: { prev: 2319.8, next: 2423.3 }, 3: { prev: 2222.9, home: 2323.0, next: 2423.3 } } };
+
+const NAV = {
+  1:  { profile: 'cover',  attract: true, layout: 1, to: { next: 3 } },
+  2:  { profile: 'corner', attract: true, layout: 2, logo: true, to: { prev: 3, next: 3 } },
+  3:  { profile: 'corner', layout: 2, to: { prev: 1, next: 4 } },
+};
+for (let n = 4; n <= 11; n++)
+  NAV[n] = { profile: 'corner', layout: 3, logo: true, to: { prev: n === 4 ? 3 : n - 1, home: 3, next: n === 11 ? 1 : n + 1 } };
+
+// Caselles del menú -> secció (pel centre de cada casella)
+const TILE_TARGETS = [
+  [549, 301, 4], [1278, 301, 5], [1975, 301, 7], [549, 720, 8],
+  [1975, 720, 9], [953, 1099, 10], [1683, 1099, 11],
+];
+
+/* ------------------------------------------------ Elements del PowerPoint --- */
+// Interlineat "simple" del PowerPoint = 1,2 × mida. Quan s'escurça (p. ex. 70 %), el PowerPoint
+// treu tot l'espai de dalt de la línia; quan s'allarga, n'afegeix uns 3/4 a dalt.
+// El navegador sempre el reparteix meitat i meitat: aquí es corregeix la diferència.
+const LH = { Poppins: 1.2, Arial: 1.2, 'Helvetica Neue': 1.2 };
+const baselineFix = (pct, size) => !pct ? 0 : pct < 1 ? -0.6 * (1 - pct) * size : 0.3 * (pct - 1) * size;
+const FAMILY = f => f === 'Poppins' ? "'PoppinsL', 'Poppins', sans-serif"
+  : f === 'Helvetica Neue' ? "'Helvetica Neue', Helvetica, Arial, sans-serif" : `'${f}', Arial, sans-serif`;
+const U = v => `calc(var(--u) * ${+(+v).toFixed(2)})`;
+const ALIGN = { l: 'left', ctr: 'center', r: 'right', just: 'justify', dist: 'justify' };
+const ANCHOR = { t: 'flex-start', ctr: 'center', b: 'flex-end' };
+
+function placeIn(el, e, parent) {
+  if (!parent) return place(el, e.x, e.y, e.w, e.h);
+  Object.assign(el.style, { position: 'absolute',
+    left: pct(e.x - parent.x, parent.w), top: pct(e.y - parent.y, parent.h),
+    width: pct(e.w, parent.w), height: pct(e.h, parent.h) });
+  return el;
+}
+
+function buildElement(e, parent) {
+  if (e.t === 'pic') {
+    const img = new Image();
+    img.src = e.src; img.alt = ''; img.decoding = 'async'; img.draggable = false;
+    img.className = parent ? '' : 'spr k-' + e.kind;
+    if (parent) img.style.position = 'absolute';
+    allImgs.push(img);
+    return placeIn(img, e, parent);
+  }
+  if (e.t === 'grp') {
+    const g = placeIn(document.createElement('div'), e, parent);
+    if (!parent) g.className = 'spr k-' + e.kind;
+    for (const k of e.kids) g.appendChild(buildElement(k, e));
+    return g;
+  }
+  // Text (i formes amb fons, com les caselles del menú)
+  const box = placeIn(document.createElement('div'), e, parent);
+  if (!parent) box.className = 'spr k-' + e.kind;
+  if (e.fill) {
+    const sh = document.createElement('div');
+    sh.className = 'shape';
+    Object.assign(sh.style, { inset: 0, background: e.fill, borderRadius: U(e.rad || 0) });
+    box.appendChild(sh);
+  }
+  if (e.paras) box.appendChild(buildText(e));
+  return box;
+}
+
+function buildText(e) {
+  const tb = document.createElement('div');
+  tb.className = 'tb';
+  const [l, t, r, b] = e.ins || [0, 0, 0, 0];
+  Object.assign(tb.style, {
+    position: 'absolute', inset: 0, padding: `${U(t)} ${U(r)} ${U(b)} ${U(l)}`,
+    justifyContent: ANCHOR[e.anchor] || 'flex-start',
+    whiteSpace: e.wrap === 'none' ? 'pre' : 'pre-wrap',
+  });
+  let wi = 0;
+  const wd = (pi) => Math.min(pi * 90 + wi++ * 22, 900) + 'ms';
+  e.paras.forEach((p, pi) => {
+    const d = document.createElement('div');
+    d.className = 'p';
+    const runs = p.runs.filter(r => !r.br);
+    const maxSz = runs.length ? Math.max(...runs.map(r => r.sz)) : p.esz;
+    const fam = runs.length ? runs.find(r => r.sz === maxSz).f : p.ef;
+    const lh = p.ln?.px ?? (p.ln?.pct ?? 1) * (LH[fam] ?? 1.2) * maxSz;
+    Object.assign(d.style, {
+      textAlign: ALIGN[p.al] || 'left', paddingLeft: U(p.mL), textIndent: U(p.ind),
+      // (el PowerPoint ignora l'espai abans del primer paràgraf d'un quadre)
+      marginTop: U(pi ? p.bef : 0), marginBottom: U(p.aft), lineHeight: U(lh), fontSize: U(maxSz),
+      fontFamily: FAMILY(fam), top: U(baselineFix(p.ln?.pct, maxSz)),
+    });
+    if (!runs.length) { d.innerHTML = '&nbsp;'; tb.appendChild(d); return; }
+    if (p.bu) {
+      const bu = document.createElement('span');
+      bu.className = 'bu';
+      bu.textContent = p.bu.ch;
+      const r0 = runs[0];
+      Object.assign(bu.style, { color: p.bu.c || r0.c, fontFamily: FAMILY(r0.f), fontWeight: r0.wt, fontSize: U(r0.sz) });
+      if (p.ind < 0) bu.style.width = U(-p.ind);
+      bu.style.setProperty('--wd', wd(pi));
+      d.appendChild(bu);
+    }
+    p.runs.forEach((r, ri) => {
+      if (r.br) { d.appendChild(document.createElement('br')); return; }
+      // Espais al final de línia: el PowerPoint no els compta en centrar
+      const endOfLine = ri === p.runs.length - 1 || p.runs[ri + 1].br;
+      const text = endOfLine ? r.t.replace(/\s+$/, '') : r.t;
+      const rs = document.createElement('span');
+      Object.assign(rs.style, { fontFamily: FAMILY(r.f), fontWeight: r.wt, fontSize: U(r.sz),
+        color: r.c || 'inherit', fontStyle: r.it ? 'italic' : 'normal' });
+      for (const tok of text.split(/(\s+)/)) {
+        if (!tok) continue;
+        if (/^\s+$/.test(tok)) { rs.appendChild(document.createTextNode(tok)); continue; }
+        const w = document.createElement('span');
+        w.className = 'w';
+        w.textContent = tok;
+        w.style.setProperty('--wd', wd(pi));
+        rs.appendChild(w);
+      }
+      d.appendChild(rs);
+    });
+    tb.appendChild(d);
+  });
+  return tb;
+}
+
+// Estat
+let current = null, busy = false, pending = null, loopTimer = null, clockHands = null;
+
+/* ------------------------------------------------------------------ DOM --- */
+const $ = id => document.getElementById(id);
+const stage = $('stage'), backEl = $('back'), slidesEl = $('slides'), uiEl = $('ui'), fxdom = $('fxdom');
+const pct = (v, t) => (v / t * 100) + '%';
+function place(el, x, y, w, h) {
+  Object.assign(el.style, { left: pct(x, W), top: pct(y, H), width: pct(w, W), height: pct(h, H) });
+  return el;
+}
+function sprite(e, kind) {
+  const img = new Image();
+  img.src = e.src; img.alt = ''; img.decoding = 'async'; img.draggable = false;
+  img.className = 'spr k-' + kind;
+  return place(img, e.x, e.y, e.w, e.h);
+}
+
+const layers = {};      // n -> { front, back, items: [el...] }
+const allImgs = [];
+
+for (let n = 1; n <= 11; n++) {
+  const front = document.createElement('div');
+  front.className = 'layer';
+  slidesEl.appendChild(front);
+  const L = layers[n] = { front, back: null, items: [] };
+
+  if (n === 1) {
+    const back = document.createElement('div');
+    back.className = 'layer';
+    backEl.appendChild(back);
+    L.back = back;
+    const order = { skyline: 0, sun: 150, anema: 380, fondo: 560, heart: 820, arrow: 980 };
+    for (const e of M.slides['1']) {
+      let el;
+      if (e.kind === 'skyline') {
+        el = place(document.createElement('div'), e.x, e.y, e.w, e.h);
+        el.className = 'spr k-skyline';
+        const img = new Image(); img.src = e.src; img.alt = '';
+        el.appendChild(img); allImgs.push(img);
+        el.appendChild(buildClock(e));
+      } else {
+        el = sprite(e, e.kind); allImgs.push(el);
+      }
+      el.dataset.delay = order[e.kind] ?? 0;
+      (e.layer === 'back' ? back : front).appendChild(el);
+      L.items.push(el);
+    }
+    // Logos institucionals (imatges originals de la presentació)
+    for (const [src, x, y, w, h, d] of [
+      ['assets/ui/ajuntament.png', 104.2, 1233.7, 473.7, 192.3, 1150],
+      ['assets/ui/santacoloma.png', 706.9, 1240.6, 612.0, 178.7, 1280]]) {
+      const el = sprite({ src, x, y, w, h }, 'brand');
+      el.dataset.delay = d; front.appendChild(el); L.items.push(el); allImgs.push(el);
+    }
+    continue;
+  }
+
+  // Ordre d'aparició: de dalt a baix i d'esquerra a dreta (l'ordre del DOM és el del PowerPoint)
+  const items = M.slides[String(n)];
+  const order = [...items].sort((a, b) => (Math.round(a.y / 90) - Math.round(b.y / 90)) || (a.x - b.x));
+  const step = Math.min(110, 1200 / items.length);
+  items.forEach(e => {
+    const el = buildElement(e, null);
+    el.dataset.delay = Math.round(order.indexOf(e) * step);
+    if (e.kind === 'tile') setupTile(el, e);
+    front.appendChild(el); L.items.push(el);
+  });
+  if (OVERLAY) {
+    const o = new Image(); o.src = `Fondo/Diapositiva${n}.PNG`; o.className = 'ovl'; front.appendChild(o);
+  }
+}
+
+// Logo petit persistent (diapos 2 i 4-11)
+const logoSmall = sprite(M.logoSmall, 'small');
+slidesEl.appendChild(logoSmall); allImgs.push(logoSmall);
+
+/* ----------------------------------------------------- Rellotge en viu --- */
+function buildClock(sky) {
+  const { cx, cy, r } = M.clock;
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', `${sky.x} ${sky.y} ${sky.w} ${sky.h}`);
+  Object.assign(svg.style, { position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' });
+  const tickCol = '#1585af';
+  let s = '';
+  for (let i = 0; i < 12; i++) {
+    const a = i * Math.PI / 6;
+    const r1 = r * 0.74, r2 = r * 0.93;
+    s += `<line x1="${cx + r1 * Math.sin(a)}" y1="${cy - r1 * Math.cos(a)}" x2="${cx + r2 * Math.sin(a)}" y2="${cy - r2 * Math.cos(a)}" stroke="${tickCol}" stroke-width="${r * .055}"/>`;
+  }
+  s += `<line id="hh" x1="${cx}" y1="${cy + r * .08}" x2="${cx}" y2="${cy - r * .52}" stroke="${tickCol}" stroke-width="${r * .065}" stroke-linecap="round"/>`;
+  s += `<line id="mh" x1="${cx}" y1="${cy + r * .1}" x2="${cx}" y2="${cy - r * .8}" stroke="${tickCol}" stroke-width="${r * .055}" stroke-linecap="round"/>`;
+  s += `<line id="sh" x1="${cx}" y1="${cy + r * .16}" x2="${cx}" y2="${cy - r * .84}" stroke="#f45a62" stroke-width="${r * .025}" stroke-linecap="round"/>`;
+  s += `<circle cx="${cx}" cy="${cy}" r="${r * .06}" fill="#f45a62"/>`;
+  svg.innerHTML = s;
+  clockHands = { h: svg.querySelector('#hh'), m: svg.querySelector('#mh'), s: svg.querySelector('#sh'), cx, cy };
+  return svg;
+}
+function tickClock() {
+  if (!clockHands || current !== 1) return;
+  const d = new Date();
+  const sec = d.getSeconds() + d.getMilliseconds() / 1000;
+  const min = d.getMinutes() + sec / 60;
+  const hr = (d.getHours() % 12) + min / 60;
+  const { cx, cy } = clockHands;
+  clockHands.h.setAttribute('transform', `rotate(${hr * 30} ${cx} ${cy})`);
+  clockHands.m.setAttribute('transform', `rotate(${min * 6} ${cx} ${cy})`);
+  clockHands.s.setAttribute('transform', `rotate(${sec * 6} ${cx} ${cy})`);
+}
+
+/* ----------------------------------------------------- Caselles menú --- */
+function setupTile(el, e) {
+  const cx = e.x + e.w / 2, cy = e.y + e.h / 2;
+  let best = null, bd = Infinity;
+  for (const [tx, ty, go] of TILE_TARGETS) {
+    const d = Math.hypot(tx - cx, ty - cy);
+    if (d < bd) { bd = d; best = go; }
+  }
+  el.style.setProperty('--rot', (Math.random() < .5 ? -1 : 1) * (8 + Math.random() * 8) + 'deg');
+  el.addEventListener('pointerdown', () => el.classList.add('press'));
+  el.addEventListener('pointerleave', () => el.classList.remove('press'));
+  el.addEventListener('pointercancel', () => el.classList.remove('press'));
+  el.addEventListener('click', ev => {
+    ev.stopPropagation();
+    el.classList.remove('press');
+    el.classList.add('burst');
+    setTimeout(() => el.classList.remove('burst'), 300);
+    navigate(best, { how: 'tile', x: cx, y: cy, color: e.kids?.find(k => k.fill)?.fill || e.color });
+  });
+  el.style.pointerEvents = 'auto';
+}
+
+/* ------------------------------------------------------------- Botons --- */
+const navBtns = new Map();   // clau -> element
+function makeBtn(type, x) {
+  const b = document.createElement('button');
+  b.className = 'nav ' + type;
+  b.setAttribute('aria-label', { prev: 'Anterior', next: 'Següent', home: 'Menú principal' }[type]);
+  const s = BTN.size, padX = 8, padT = 14, padB = H - (BTN.y + s);
+  place(b, x - padX, BTN.y - padT, s + padX * 2, s + padT + padB);
+  const img = new Image();
+  img.src = type === 'home' ? 'assets/ui/home.png' : 'assets/ui/arrow.png';
+  img.alt = '';
+  Object.assign(img.style, { left: pct(padX, s + padX * 2), top: pct(padT, s + padT + padB), width: pct(s, s + padX * 2), height: pct(s, s + padT + padB) });
+  b.appendChild(img);
+  b.addEventListener('pointerdown', () => b.classList.add('press'));
+  b.addEventListener('pointerleave', () => b.classList.remove('press'));
+  b.addEventListener('click', ev => {
+    ev.stopPropagation();
+    b.classList.remove('press');
+    const nav = NAV[current];
+    const target = nav.attract ? 3 : nav.to[type];
+    if (target != null) navigate(target, { how: type });
+  });
+  return b;
+}
+function updateButtons(n, animate) {
+  const want = new Map();
+  for (const [type, x] of Object.entries(BTN.x[NAV[n].layout])) want.set(type + '@' + x, [type, x]);
+  for (const [k, b] of navBtns) {
+    if (!want.has(k)) {
+      navBtns.delete(k);
+      b.classList.remove('enter'); b.classList.add('leave');
+      setTimeout(() => b.remove(), 320);
+    }
+  }
+  let i = 0;
+  for (const [k, [type, x]] of want) {
+    let b = navBtns.get(k);
+    if (!b) {
+      b = makeBtn(type, x);
+      if (animate) { b.style.setProperty('--d', (250 + i * 90) + 'ms'); b.classList.add('enter'); }
+      uiEl.appendChild(b); navBtns.set(k, b);
+    }
+    b.classList.toggle('pulse', n === 1);
+    i++;
+  }
+  $('tapall').classList.toggle('on', !!NAV[n].attract);
+}
+
+/* ---------------------------------------------------------------- Ones --- */
+const bg = $('bg'), fx = $('fx');
+const bctx = bg.getContext('2d'), fctx = fx.getContext('2d');
+let scale = 1;
+function resize() {
+  const r = stage.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.min(Math.round(r.width * dpr), W);
+  for (const c of [bg, fx]) { c.width = w; c.height = Math.round(w * H / W); }
+  scale = w / W;
+}
+addEventListener('resize', resize);
+
+const STEP = M.step;
+// Suavitza els perfils (evita esglaons on una capa s'acaba)
+const smooth = a => a.map((_, i) => {
+  let s = 0, c = 0;
+  for (let k = -2; k <= 2; k++) { const j = i + k; if (j >= 0 && j < a.length) { s += a[j]; c++; } }
+  return s / c;
+});
+for (const name in M.waves) for (const g in M.waves[name]) for (const key in M.waves[name][g])
+  M.waves[name][g][key] = smooth(M.waves[name][g][key]);
+const XS = M.waves.corner.bl.yel.map((_, i) => Math.min(i * STEP, W - 1));
+const YS = M.waves.corner.tr.yel.map((_, i) => Math.min(i * STEP, H - 1));
+const OFF_Y = XS.map(() => H + 80), OFF_X = YS.map(() => W + 80);
+const prof = (name, g, key) => key ? M.waves[name][g][key] : (g === 'bl' ? OFF_Y : OFF_X);
+
+const GROUPS = {
+  bl: [ { key: 'yel', c: COL.yel }, { key: 'pink', c: COL.pink }, { key: 'cyan', c: COL.cyan } ],
+  tr: [ { key: 'yel', c: COL.yel }, { key: 'mag', c: COL.mag }, { key: null, c: COL.cyan } ],
+};
+const rest = { bl: 'cover', tr: 'cover' };   // perfil actual de cada grup
+
+const clamp = (v, a = 0, b = 1) => v < a ? a : v > b ? b : v;
+const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const lerp = (a, b, t) => a + (b - a) * t;
+
+// Ondulació contínua de les vores: dues ones que viatgen + un vaivé lent de tota la capa
+function wob(k, p, t, amp) {
+  return amp * (Math.sin(p * 0.0042 + t * 0.8 + k * 1.9)
+              + 0.45 * Math.sin(p * 0.011 - t * 1.25 + k * 0.7)
+              + 0.9 * Math.sin(t * 0.55 + k * 1.3));
+}
+const ampOf = name => name === 'cover' ? 19 : 13;
+
+function pathBL(ctx, k, yAt) {
+  ctx.beginPath();
+  ctx.moveTo(-30, H + 30);
+  ctx.lineTo(-30, yAt(0));
+  for (let i = 0; i < XS.length; i++) ctx.lineTo(XS[i], yAt(i));
+  ctx.lineTo(W + 30, yAt(XS.length - 1));
+  ctx.lineTo(W + 30, H + 30);
+  ctx.closePath();
+}
+function pathTR(ctx, k, xAt) {
+  ctx.beginPath();
+  ctx.moveTo(W + 30, -30);
+  ctx.lineTo(xAt(0), -30);
+  for (let j = 0; j < YS.length; j++) ctx.lineTo(xAt(j), YS[j]);
+  ctx.lineTo(xAt(YS.length - 1), H + 30);
+  ctx.lineTo(W + 30, H + 30);
+  ctx.closePath();
+}
+function drawRest(ctx, g, t) {
+  const name = rest[g], amp = ampOf(name);
+  GROUPS[g].forEach((L, k) => {
+    if (!L.key) return;
+    const P = prof(name, g, L.key);
+    ctx.fillStyle = L.c;
+    if (g === 'bl') pathBL(ctx, k, i => P[i] + wob(k, XS[i], t, amp));
+    else pathTR(ctx, k, j => P[j] + wob(k + 3, YS[j], t, amp));
+    ctx.fill();
+  });
+}
+
+/* -------------------------------------------------- Transicions (onada) --- */
+let trans = null;     // transició en curs
+function startTransition(opts) {
+  return new Promise(resolve => {
+    trans = { ...opts, t0: performance.now(), swapped: false, resolve };
+    if (opts.startAt) trans.t0 -= opts.startAt * opts.T;
+  });
+}
+// Moments (en fraccions de T)
+const SWAP = .72, END_LINEAR = 1.36, END_CIRCLE = 1.36;
+
+function drawWaveFlood(ctx, g, tr, t, now) {
+  const T = tr.T, el = (now - tr.t0) / T;
+  const from = tr.from, to = tr.to, N = GROUPS[g].length;
+  const TOP = -280;
+  GROUPS[g].forEach((L, k) => {
+    const A = prof(from, g, L.key), B = prof(to, g, L.key);
+    const amp0 = ampOf(el < SWAP ? from : to);
+    ctx.fillStyle = L.c;
+    const edge = (base, i, pos, len) => {
+      let v;
+      if (el < SWAP) {
+        const f = ease(clamp((el - k * .07 - .14 * pos / len) / .42));
+        v = lerp(A[i], TOP, f);
+        return v + wob(k, pos, t, amp0 + 55 * Math.sin(Math.PI * f));
+      }
+      const f = ease(clamp((el - SWAP - (N - 1 - k) * .06 - .10 * (1 - pos / len)) / .40));
+      v = lerp(TOP, B[i], f);
+      return v + wob(k, pos, t, amp0 + 55 * Math.sin(Math.PI * f));
+    };
+    if (g === 'bl') pathBL(ctx, k, i => edge(0, i, XS[i], W));
+    else pathTR(ctx, k, j => edge(0, j, YS[j], H));
+    ctx.fill();
+  });
+}
+
+function drawCircleFlood(ctx, tr, t, now) {
+  const el = (now - tr.t0) / tr.T;
+  const { x, y } = tr;
+  const Rmax = Math.hypot(Math.max(x, W - x), Math.max(y, H - y)) + 160;
+  const cols = [COL.yel, COL.pink, tr.color || COL.cyan];
+  cols.forEach((c, k) => {
+    const fo = ease(clamp((el - k * .09) / .5));
+    const fi = ease(clamp((el - SWAP - (2 - k) * .08) / .45));
+    if (fo <= 0) return;
+    const R = lerp(140, Rmax, fo), Rh = fi * Rmax;
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    blob(ctx, x, y, R, k, t, 26 * Math.sin(Math.PI * fo) + 8, false);
+    if (Rh > 0) blob(ctx, x, y, Rh, k + 3, t, 30 * Math.sin(Math.PI * fi) + 6, true);
+    ctx.fill('evenodd');
+  });
+}
+function blob(ctx, x, y, R, k, t, amp, reverse) {
+  const n = 72;
+  for (let s = 0; s <= n; s++) {
+    const i = reverse ? n - s : s;
+    const a = i / n * Math.PI * 2;
+    const r = Math.max(0, R + amp * Math.sin(a * 6 + t * 3 + k) + amp * .5 * Math.sin(a * 11 - t * 2));
+    const px = x + r * Math.cos(a), py = y + r * Math.sin(a);
+    s === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
+
+/* -------------------------------------------------------- Bucle de dibuix --- */
+function frame(now) {
+  const t = now / 1000;
+  bctx.setTransform(scale, 0, 0, scale, 0, 0);
+  fctx.setTransform(scale, 0, 0, scale, 0, 0);
+  bctx.clearRect(0, 0, W, H);
+  fctx.clearRect(0, 0, W, H);
+
+  const tr = trans;
+  const flooding = tr && tr.kind !== 'circle' ? tr.kind : null;
+  for (const g of ['bl', 'tr']) if (g !== flooding) drawRest(bctx, g, t);
+
+  if (tr) {
+    const el = (now - tr.t0) / tr.T;
+    if (tr.kind === 'circle') drawCircleFlood(fctx, tr, t, now);
+    else drawWaveFlood(fctx, tr.kind, tr, t, now);
+    if (!tr.swapped && el >= SWAP) { tr.swapped = true; tr.onSwap(); }
+    if (el >= (tr.kind === 'circle' ? END_CIRCLE : END_LINEAR)) {
+      if (tr.kind !== 'circle') rest[tr.kind] = tr.to;
+      trans = null;
+      tr.resolve();
+    }
+  }
+  tickClock();
+  requestAnimationFrame(frame);
+}
+
+/* ----------------------------------------------------------- Navegació --- */
+function enterItems(n, baseDelay) {
+  const L = layers[n];
+  for (const el of L.items) { el.classList.remove('in'); }
+  void slidesEl.offsetWidth;   // reinicia les animacions
+  for (const el of L.items) {
+    el.style.setProperty('--d', (baseDelay + +el.dataset.delay) + 'ms');
+    el.classList.add('in');
+  }
+}
+
+function swapTo(n, baseDelay) {
+  const prev = current;
+  if (prev) {
+    layers[prev].front.classList.remove('active');
+    layers[prev].back?.classList.remove('active');
+    for (const el of layers[prev].items) el.classList.remove('in');
+  }
+  layers[n].front.classList.add('active');
+  layers[n].back?.classList.add('active');
+
+  // Logo petit: es queda quiet si ja hi era; si no, entra
+  const hadLogo = prev && NAV[prev].logo, wantLogo = NAV[n].logo;
+  logoSmall.classList.remove('in', 'static');
+  if (wantLogo && hadLogo) logoSmall.classList.add('static');
+  else if (wantLogo) { void logoSmall.offsetWidth; logoSmall.style.setProperty('--d', baseDelay + 'ms'); logoSmall.classList.add('in'); }
+
+  current = n;
+  enterItems(n, baseDelay);
+  updateButtons(n, true);
+}
+
+async function navigate(n, opt = {}) {
+  if (n === current && !busy) return;
+  if (busy) { pending = [n, opt]; return; }
+  busy = true;
+  clearTimeout(loopTimer);
+  maybeFullscreen();
+
+  const target = NAV[n].profile;
+  const T = opt.how === 'loop' ? T_LOOP : T_NAV;
+  let kind = 'bl';
+  if (opt.how === 'prev') kind = 'tr';
+  if (opt.how === 'tile') kind = 'circle';
+
+  if (REDUCED) {
+    rest.bl = rest.tr = target;
+    swapTo(n, 0);
+  } else {
+    const other = kind === 'bl' ? 'tr' : 'bl';
+    await startTransition({
+      kind, T, x: opt.x, y: opt.y, color: opt.color,
+      from: kind === 'circle' ? null : rest[kind], to: target,
+      onSwap: () => {
+        if (kind === 'circle') { rest.bl = rest.tr = target; }
+        else rest[other] = target;
+        swapTo(n, Math.round(T * .25));
+      },
+    });
+  }
+  busy = false;
+  afterArrive();
+}
+
+function afterArrive() {
+  if (pending) { const [n, o] = pending; pending = null; if (n !== current) return navigate(n, o); }
+  if (NAV[current].attract) {
+    clearTimeout(loopTimer);
+    loopTimer = setTimeout(() => navigate(current === 1 ? 2 : 1, { how: 'loop' }), LOOP_MS);
+  }
+}
+
+$('tapall').addEventListener('click', () => navigate(3, { how: 'next' }));
+
+/* ------------------------------------------------------ Tocs i teclat --- */
+const RIPPLE_COLS = [COL.yel, COL.pink, COL.cyan, COL.mag];
+stage.addEventListener('pointerdown', e => {
+  const r = stage.getBoundingClientRect();
+  const d = document.createElement('div');
+  d.className = 'ripple';
+  d.style.left = (e.clientX - r.left) + 'px';
+  d.style.top = (e.clientY - r.top) + 'px';
+  d.style.setProperty('--c', RIPPLE_COLS[Math.floor(Math.random() * RIPPLE_COLS.length)]);
+  fxdom.appendChild(d);
+  setTimeout(() => d.remove(), 700);
+});
+
+function maybeFullscreen() {
+  if (!AUTO_FULLSCREEN || document.fullscreenElement) return;
+  document.documentElement.requestFullscreen?.().catch(() => {});
+}
+
+document.addEventListener('keydown', e => {
+  const nav = NAV[current];
+  if (!nav) return;
+  switch (e.key) {
+    case 'ArrowRight': case 'PageDown': case ' ':
+      navigate(nav.attract ? 3 : nav.to.next, { how: 'next' }); break;
+    case 'ArrowLeft': case 'PageUp':
+      if (!nav.attract) navigate(nav.to.prev, { how: 'prev' }); break;
+    case 'h': case 'H': case 'Home': navigate(3, { how: 'home' }); break;
+    case 'Escape': case '0': navigate(1, { how: 'home' }); break;
+    case 'f': case 'F':
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen?.().catch(() => {});
+      break;
+  }
+});
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+/* --------------------------------------------------------------- Inici --- */
+resize();
+requestAnimationFrame(frame);
+const fontsReady = Promise.race([
+  Promise.all(['500', '800'].map(w => document.fonts.load(`${w} 40px Poppins`))),
+  new Promise(r => setTimeout(r, 3000)),
+]).catch(() => {});
+const timeout = ms => new Promise(r => setTimeout(r, ms));
+Promise.race([
+  Promise.all([fontsReady, ...allImgs.map(i => i.decode ? i.decode().catch(() => {}) : null)]),
+  timeout(5000),          // mai no es queda penjat a la pantalla de càrrega
+]).then(() => {
+  $('loading').classList.add('done');
+  busy = true;
+  // Depuració: ?slide=N obre directament una diapositiva; ?static la mostra sense animacions
+  const first = +QS.get('slide') || 1;
+  rest.bl = rest.tr = NAV[first].profile;
+  if (QS.has('static')) {
+    document.documentElement.classList.add('nomotion'); $('loading').remove();
+    swapTo(first, 0); busy = false; return;
+  }
+  // Entrada inicial: la pantalla comença coberta per l'onada i es destapa
+  startTransition({
+    kind: 'bl', T: T_LOOP, from: rest.bl, to: rest.bl, startAt: SWAP - .001,
+    onSwap: () => swapTo(first, 250),
+  }).then(() => { busy = false; if (first === 1) afterArrive(); });
+});
+</script>
+</body>
+</html>

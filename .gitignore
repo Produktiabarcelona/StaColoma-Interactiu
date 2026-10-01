@@ -1,0 +1,14 @@
+# Conversió automàtica de Fondo.ppt (es regenera amb tools/build_assets.py)
+/tools/cache/
+
+# Imatges extretes del .docx (ja són dins del document)
+/media/
+
+# Configuració local de l'editor
+.claude/
+
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+~$*
