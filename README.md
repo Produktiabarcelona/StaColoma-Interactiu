@@ -2,7 +2,11 @@
 
 Interactive presentation for a touch screen, built from the presentation `Fondo.ppt`.
 
-## Opening it
+**▶ Open the web: https://produktiabarcelona.github.io/StaColoma-Interactiu/**
+
+(Published with GitHub Pages; it updates automatically a minute or two after each push to `main`.)
+
+## Opening it locally
 
 Open `index.html` in Chrome or Edge. In kiosk mode (full screen, no browser bars):
 
