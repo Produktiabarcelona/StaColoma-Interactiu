@@ -205,9 +205,8 @@
   #loading i { width: 6vmin; height: 6vmin; border-radius: 50%; border: .8vmin solid var(--cyan); border-top-color: var(--pink); animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(1turn); } }
 
-  @media (prefers-reduced-motion: reduce) {
-    .spr.in, .k-tile.in, .k-heart.in, .k-sun.in, .k-logo.in { animation: none !important; opacity: 1; }
-  }
+  /* Sense animacions només si es demana explícitament amb ?reduced (vegeu REDUCED) */
+  .reduced .spr.in, .reduced .k-tile.in, .reduced .k-heart.in, .reduced .k-sun.in, .reduced .k-logo.in { animation: none !important; opacity: 1; }
 </style>
 </head>
 <body>
@@ -242,7 +241,11 @@ const SLOW = +(QS.get('slow') || 1);   // depuració: ?slow=4 (càmera lenta)
 const OVERLAY = QS.has('overlay');      // depuració: ?overlay (diapositiva original a sobre)
 const T_NAV = 850 * SLOW;      // durada base de la transició (ms)
 const T_LOOP = 1300 * SLOW;    // transició més lenta per al bucle de presentació
-const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// No fem cas de prefers-reduced-motion del sistema: molts PCs tenen desactivats els «Efectes d'animació»
+// de Windows (o hi entren per escriptori remot) i la pantalla interactiva es quedaria sense animacions.
+// Per desactivar-les expressament: ?reduced
+const REDUCED = QS.has('reduced');
+if (REDUCED) document.documentElement.classList.add('reduced');
 
 const COL = { yel: '#f9bd16', pink: '#e8496a', cyan: '#1fb0dd', mag: '#e83e8a', navy: '#1f3461' };
 
