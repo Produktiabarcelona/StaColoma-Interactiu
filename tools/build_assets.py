@@ -549,6 +549,26 @@ def classify(n, e):
     return 'text'
 
 
+def relayout_slide5(items):
+    """
+    Diapositiva 5 (Sant Pasqual 1): al PowerPoint el text de "40 habitatges…" i els
+    títols de les fotos queden aplastats contra les imatges. Es reparteix l'espai:
+    capçalera a dalt, títols de foto i fotos al seu lloc (una mica més avall) i la
+    línia dels 40 habitatges sota les fotos.
+    """
+    out = []
+    for e in items:
+        if e['t'] == 'pic':
+            e['y'] = round(e['y'] + 24, 2)
+        elif e['t'] == 'text' and e['kind'] == 'text' and 'paras' in e and len(e['paras']) > 3:
+            head = dict(e, paras=e['paras'][:2], y=450, h=126, anchor='t')
+            tail = dict(e, paras=[e['paras'][-1]], y=1235, h=64, anchor='t')
+            out += [head, tail]
+            continue
+        out.append(e)
+    return out
+
+
 def build_slides(deck):
     slides = {}
     for n in range(2, 12):
@@ -560,6 +580,8 @@ def build_slides(deck):
         items = [e for e in items if e['x'] < W and e['y'] < H and e['x'] + e['w'] > 0 and e['y'] + e['h'] > 0]
         for e in items:
             e['kind'] = classify(n, e)
+        if n == 5:
+            items = relayout_slide5(items)
         slides[str(n)] = items
         print(f'diapo {n}:', ', '.join(e['kind'] for e in items))
     return slides
