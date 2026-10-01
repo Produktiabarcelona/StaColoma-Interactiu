@@ -231,7 +231,9 @@ def build_cover(img, entries):
         m = ndi.binary_dilation(zone & m, iterations=2) & zone
         exact = np.median(img[m & (cheb(img, color) < 20)], axis=0)
         rgb, a = matte(img, m, [exact])
-        entries.append(dict(save_sprite(name, rgb, a, bbox(a > .02)), kind=name.split('_')[1]))
+        # Marge ampli i color pur a tot el voltant: cap vora de retall ni franja d'un píxel
+        rgb[:] = exact
+        entries.append(dict(save_sprite(name, rgb, a, bbox(a > .02, pad=28)), kind=name.split('_')[1]))
     return clock
 
 

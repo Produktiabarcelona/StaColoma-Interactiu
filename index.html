@@ -141,8 +141,8 @@
     100% { opacity: 1; transform: none; }
   }
   @keyframes drawIn {
-    0%   { opacity: 1; clip-path: inset(0 100% 0 0); }
-    100% { opacity: 1; clip-path: inset(0 0 0 0); }
+    0%   { opacity: 1; clip-path: inset(-40px 100% -40px -40px); }
+    100% { opacity: 1; clip-path: inset(-40px -40px -40px -40px); }   /* marge: mai retalla la vora */
   }
   @keyframes fadeUp {
     0%   { opacity: 0; transform: translateY(calc(var(--u) * 50)); }
