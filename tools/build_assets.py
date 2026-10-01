@@ -228,7 +228,9 @@ def build_cover(img, entries):
         'cover_arrow': ((cls == 0) & (yy >= 500), NAVY),
     }
     for name, (m, color) in parts.items():
-        m = ndi.binary_dilation(zone & m, iterations=2) & zone
+        # Obertura: elimina els píxels de vora d'altres lletres/fletxa classificats per error (franges fines)
+        m = ndi.binary_opening(zone & m, structure=np.ones((5, 5)))
+        m = ndi.binary_dilation(m, iterations=3) & zone
         exact = np.median(img[m & (cheb(img, color) < 20)], axis=0)
         rgb, a = matte(img, m, [exact])
         # Marge ampli i color pur a tot el voltant: cap vora de retall ni franja d'un píxel
