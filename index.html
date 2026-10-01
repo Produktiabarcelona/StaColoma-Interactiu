@@ -136,8 +136,8 @@
   }
   @keyframes heartIn {
     0%   { opacity: 0; transform: scale(0) rotate(-25deg); }
-    50%  { opacity: 1; transform: scale(1.45) rotate(8deg); }
-    75%  { transform: scale(.9); }
+    55%  { opacity: 1; transform: scale(1.22) rotate(6deg); }
+    80%  { transform: scale(.97) rotate(-1deg); }
     100% { opacity: 1; transform: none; }
   }
   @keyframes drawIn {
@@ -150,8 +150,16 @@
   }
 
   /* --- Animacions contínues (propietats independents de l'entrada) -------- */
-  .k-heart.in { animation: heartIn .9s cubic-bezier(.2,.9,.25,1.15) var(--d) both, beat 1.8s ease-in-out calc(var(--d) + 1s) infinite; }
-  @keyframes beat { 0%, 40%, 100% { scale: 1; } 12% { scale: 1.16; } 26% { scale: 1.07; } }
+  .k-heart.in { animation: heartIn .9s cubic-bezier(.2,.9,.25,1.15) var(--d) both, beat 1.3s linear calc(var(--d) + .9s) infinite; }
+  /* Batec de cor (lub-dub): dues pulsacions seguides i una petita pausa, sempre suau i sense salts */
+  @keyframes beat {
+    0%   { scale: 1;    animation-timing-function: cubic-bezier(.2,.7,.3,1); }
+    13%  { scale: 1.14; animation-timing-function: cubic-bezier(.4,0,.6,1); }
+    27%  { scale: 1;    animation-timing-function: cubic-bezier(.2,.7,.3,1); }
+    38%  { scale: 1.08; animation-timing-function: cubic-bezier(.4,0,.6,1); }
+    55%  { scale: 1; }
+    100% { scale: 1; }
+  }
   .k-sun.in { animation: sunIn 1.4s cubic-bezier(.2,.9,.25,1.15) var(--d) both, glow 5s ease-in-out calc(var(--d) + 1.4s) infinite; }
   @keyframes glow { 0%, 100% { scale: 1; translate: 0 0; } 50% { scale: 1.05; translate: 0 calc(var(--u) * -10); } }
   .k-tile.in { animation: tileIn .85s cubic-bezier(.2,.9,.25,1.15) var(--d) both, bob 4.5s ease-in-out calc(var(--d) + .9s) infinite; }
