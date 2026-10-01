@@ -583,6 +583,30 @@ def relayout_slide10(items):
             e['paras'][2]['bef'] += 98
 
 
+def extra_photo(filename, name, x, y, w, radius):
+    """Foto afegida que no és al PowerPoint (fotos_actualizadas/): cantonades arrodonides i ombra,
+    com la resta de fotos de la presentació."""
+    img = Image.open(os.path.join(ROOT, 'fotos_actualizadas', filename)).convert('RGBA')
+    h = round(w * img.size[1] / img.size[0])
+    img = img.resize((w, h), Image.LANCZOS)
+    mask = Image.new('L', (w * 4, h * 4), 0)
+    from PIL import ImageDraw
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, w * 4 - 1, h * 4 - 1], radius=radius * 4, fill=255)
+    img.putalpha(mask.resize((w, h), Image.LANCZOS))
+    blur, pad = 10.0, 36
+    canvas = Image.new('RGBA', (w + 2 * pad, h + 2 * pad), (0, 0, 0, 0))
+    a = Image.new('L', canvas.size, 0)
+    a.paste(img.getchannel('A'), (pad, pad + 2))
+    a = a.filter(ImageFilter.GaussianBlur(blur)).point(lambda v: int(v * 0.5))
+    sh = Image.new('RGBA', canvas.size, (0, 0, 0, 0))
+    sh.putalpha(a)
+    canvas.alpha_composite(sh)
+    canvas.alpha_composite(img, (pad, pad))
+    canvas.save(os.path.join(MED, name + '.webp'), quality=88, alpha_quality=90, method=6)
+    return {'t': 'pic', 'kind': 'photo', 'src': f'assets/media/{name}.webp', 'x': x - pad, 'y': y - pad,
+            'w': canvas.size[0], 'h': canvas.size[1], 'bw': w, 'bh': h}
+
+
 def even_spacing(items, pct=1.5):
     """Diapositiva 6: al PowerPoint els paràgrafs tenen interlineats diferents (160 %, 160 %, 90 %),
     i les línies queden a distàncies desiguals. Tots amb el mateix."""
@@ -609,6 +633,8 @@ def build_slides(deck):
             even_spacing(items)
         if n == 10:
             relayout_slide10(items)
+        if n == 11:
+            items.append(extra_photo('Image37.jpeg', 's11_street', x=1351, y=690, w=1040, radius=70))
         slides[str(n)] = items
         print(f'diapo {n}:', ', '.join(e['kind'] for e in items))
     return slides
